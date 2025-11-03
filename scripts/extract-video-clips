@@ -1,0 +1,337 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "ffmpeg-python",
+# ]
+# ///
+
+import argparse
+import json
+import ffmpeg
+import hashlib
+import re
+import unicodedata
+from pathlib import Path
+from urllib.parse import unquote, urlparse, parse_qs
+
+
+def parse_label_studio_path(video_path: str) -> Path:
+    """
+    Parse Label Studio's video path format.
+    Example: /data/local-files/?d=Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/YouTube/video.mp4
+    """
+    if video_path.startswith("/data/local-files/?d="):
+        # Extract the path from the query parameter
+        parsed = urlparse(video_path)
+        params = parse_qs(parsed.query)
+        relative_path = params.get("d", [""])[0]
+        # Decode URL encoding
+        decoded_path = unquote(relative_path)
+        # Construct full path from home directory
+        full_path = Path.home() / decoded_path
+        return full_path
+    else:
+        # Fallback to direct path
+        return Path(video_path)
+
+
+def sanitize_filename(name: str, max_length: int = 40) -> str:
+    """
+    Sanitize and shorten a filename for use in clip names.
+    Removes special characters, accents, and truncates to reasonable length.
+    """
+    # Remove file extension if present
+    name = Path(name).stem
+
+    # Normalize unicode characters and remove accents
+    # NFD decomposes characters, then we filter out combining marks
+    name = unicodedata.normalize("NFD", name)
+    name = "".join(char for char in name if unicodedata.category(char) != "Mn")
+
+    # Replace special characters with underscores or remove them
+    # Keep alphanumeric, spaces, hyphens, and underscores
+    sanitized = re.sub(r"[^\w\s\-]", "", name)
+
+    # Replace multiple spaces/underscores with single underscore
+    sanitized = re.sub(r"[\s_]+", "_", sanitized)
+
+    # Trim to max length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+
+    # Remove trailing underscores
+    sanitized = sanitized.strip("_")
+
+    return sanitized
+
+
+def get_video_identifier(video_path: Path) -> str:
+    """
+    Generate a short, unique identifier for a video.
+    Uses first 8 chars of SHA256 hash of the full filename.
+    """
+    full_name = video_path.name
+    hash_obj = hashlib.sha256(full_name.encode())
+    return hash_obj.hexdigest()[:8]
+
+
+def get_video_fps(video_path: Path) -> float:
+    """Get the FPS of a video file."""
+    probe = ffmpeg.probe(str(video_path))
+    video_stream = next(
+        (s for s in probe["streams"] if s["codec_type"] == "video"),
+        None,
+    )
+    if video_stream is None:
+        raise ValueError(f"No video stream found in {video_path}")
+
+    # Parse FPS from r_frame_rate (e.g., "30/1" or "30000/1001")
+    fps_str = video_stream["r_frame_rate"]
+    num, denom = map(int, fps_str.split("/"))
+    return num / denom
+
+
+def convert_label_studio_frames_to_video_frames(
+    start_frame_ls: int,
+    end_frame_ls: int,
+    label_studio_fps: float,
+    video_fps: float,
+) -> tuple[int, int, float]:
+    """
+    Convert Label Studio frame numbers to actual video frame numbers.
+
+    Returns:
+        (start_frame_ffmpeg, end_frame_ffmpeg, duration_seconds)
+    """
+    # Convert LS frames (1-indexed) -> time using label_studio_fps
+    start_time = (start_frame_ls - 1) / label_studio_fps
+    end_time = (end_frame_ls - 1) / label_studio_fps
+
+    # Convert time -> video frames (0-indexed)
+    start_frame_ffmpeg = int(start_time * video_fps)
+    end_frame_ffmpeg = int(end_time * video_fps)
+
+    # Calculate duration (inclusive frames)
+    duration = (end_frame_ffmpeg - start_frame_ffmpeg + 1) / video_fps
+
+    return start_frame_ffmpeg, end_frame_ffmpeg, duration
+
+
+def extract_video_clip(
+    video_path: Path,
+    output_path: Path,
+    start_frame: int,
+    end_frame: int,
+    fps: float,
+) -> None:
+    """Extract a video clip using ffmpeg."""
+    start_time = start_frame / fps
+    end_time = (end_frame + 1) / fps  # +1 to include the end frame
+
+    (
+        ffmpeg.input(str(video_path), ss=start_time, to=end_time)
+        .output(
+            str(output_path),
+            vcodec="libx264",
+            acodec="aac",
+            preset="fast",
+            crf=23,
+            pix_fmt="yuv420p",
+            movflags="faststart",
+        )
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True, quiet=True)
+    )
+
+
+def extract_clips(
+    annotation_file: Path,
+    output_dir: Path,
+    label_studio_fps: float = 24.0,
+) -> None:
+    """
+    Extract video clips based on Label Studio annotations.
+
+    Args:
+        annotation_file: Path to the Label Studio annotation JSON file
+        output_dir: Directory where clips will be saved
+        label_studio_fps: FPS configured in Label Studio (default: 24)
+    """
+    # Load annotations
+    with open(annotation_file, "r") as f:
+        annotations = json.load(f)
+
+    # Create output directory and metadata directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metadata_dir = output_dir / ".metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+
+    # Track summary statistics
+    total_videos_processed = 0
+    total_clips_extracted = 0
+
+    # Process each annotation
+    for annotation in annotations:
+        video_path_str = annotation.get("video", "")
+        video_path = parse_label_studio_path(video_path_str)
+
+        if not video_path.exists():
+            print(f"Warning: Video file not found: {video_path}")
+            continue
+
+        # Generate identifiers for this video
+        video_id = get_video_identifier(video_path)
+        video_short_name = sanitize_filename(video_path.name)
+
+        # Get FPS from video metadata
+        try:
+            fps = get_video_fps(video_path)
+
+            print(f"\nProcessing video: {video_path.name}")
+            print(f"Video ID: {video_id}")
+            print(f"Detected FPS: {fps:.2f}")
+            print(
+                f"Found {len(annotation.get('videoLabels', []))} annotated segments"
+            )
+
+        except Exception as e:
+            print(f"Error reading video metadata for {video_path}: {e}")
+            continue
+
+        video_labels = annotation.get("videoLabels", [])
+
+        # Track metadata for this video
+        video_metadata = {
+            "original_name": video_path.name,
+            "original_path": str(video_path.absolute()),
+            "video_id": video_id,
+            "short_name": video_short_name,
+            "fps": fps,
+            "clips": [],
+        }
+
+        clip_count = 0
+
+        # Extract each labeled segment
+        for idx, label_data in enumerate(video_labels, start=1):
+            labels = label_data.get("timelinelabels", [])
+            ranges = label_data.get("ranges", [])
+
+            if not labels or not ranges:
+                continue
+
+            # Get the stroke type (first label)
+            stroke_type = labels[0].replace(" ", "_")
+
+            # Process each time range
+            for range_idx, time_range in enumerate(ranges, start=1):
+                start_frame_ls = time_range.get("start")
+                end_frame_ls = time_range.get("end")
+
+                if start_frame_ls is None or end_frame_ls is None:
+                    continue
+
+                # Convert LS frames to video frames
+                start_frame_ffmpeg, end_frame_ffmpeg, duration = (
+                    convert_label_studio_frames_to_video_frames(
+                        start_frame_ls, end_frame_ls, label_studio_fps, fps
+                    )
+                )
+
+                # Create output filename
+                clip_count += 1
+                output_filename = f"{video_id}_{video_short_name}_{stroke_type}_f{start_frame_ls}-{end_frame_ls}.mp4"
+                output_path = output_dir / stroke_type / output_filename
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+
+                try:
+                    extract_video_clip(
+                        video_path,
+                        output_path,
+                        start_frame_ffmpeg,
+                        end_frame_ffmpeg,
+                        fps,
+                    )
+
+                    print(
+                        f"  ✓ Extracted {stroke_type}: LS frames {start_frame_ls}-{end_frame_ls} @ {label_studio_fps} FPS → video frames {start_frame_ffmpeg}-{end_frame_ffmpeg} @ {fps} FPS → {output_filename}"
+                    )
+
+                    # Add clip metadata
+                    video_metadata["clips"].append(
+                        {
+                            "filename": output_filename,
+                            "stroke_type": stroke_type,
+                            "start_frame": start_frame_ls,  # Store Label Studio frame numbers
+                            "end_frame": end_frame_ls,
+                            "duration_seconds": duration,
+                        }
+                    )
+
+                except ffmpeg.Error as e:
+                    print(
+                        f"  ✗ Error extracting {output_filename}: {e.stderr.decode()}"
+                    )
+
+        video_metadata["total_clips"] = clip_count
+
+        # Save metadata for this video
+        metadata_filename = f"{video_id}_dataset_metadata.json"
+        metadata_path = metadata_dir / metadata_filename
+        with open(metadata_path, "w") as f:
+            json.dump(video_metadata, f, indent=2)
+
+        total_videos_processed += 1
+        total_clips_extracted += clip_count
+
+        print(f"  Total clips extracted: {clip_count}")
+        print(f"  📄 Metadata saved to: .metadata/{metadata_filename}")
+
+    # Print final summary
+    print(f"\n{'=' * 60}")
+    print("✓ Extraction complete!")
+    print(f"   Total videos processed: {total_videos_processed}")
+    print(f"   Total clips extracted: {total_clips_extracted}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Extract annotated video clips from Label Studio annotations",
+    )
+    parser.add_argument(
+        "annotation_file",
+        type=Path,
+        help="Path to the Label Studio annotation JSON file",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="Directory where extracted clips will be saved",
+    )
+    parser.add_argument(
+        "--label-studio-fps",
+        type=float,
+        default=24.0,
+        help="FPS configured in Label Studio's <Video> tag (default: 24).",
+    )
+    args = parser.parse_args()
+
+    if not args.annotation_file.exists():
+        parser.error(f"Annotation file not found: {args.annotation_file}")
+
+    print("Label Studio Annotation Clip Extractor")
+    print(f"{'=' * 60}")
+    print(f"Annotation file: {args.annotation_file}")
+    print(f"Output directory: {args.output_dir}")
+    if args.label_studio_fps:
+        print(f"Label Studio FPS: {args.label_studio_fps}")
+
+    extract_clips(args.annotation_file, args.output_dir, args.label_studio_fps)
+
+
+if __name__ == "__main__":
+    main()

@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Dataset - ignore video files but keep metadata
+# Ignore all video files in dataset directories
+dataset/**/*.mp4
+dataset/**/*.mov
+
+# But keep the metadata directory and its JSON files
+!dataset/.metadata/
+!dataset/.metadata/*.json
