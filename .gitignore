@@ -214,3 +214,7 @@ dataset/**/*.mov
 # But keep the metadata directory and its JSON files
 !dataset/.metadata/
 !dataset/.metadata/*.json
+
+# Ignore PyTorch model files
+*.pt
+*.pth
