@@ -1,0 +1,199 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "opencv-python",
+# ]
+# ///
+
+"""
+Interactive tool to find coordinates for regions to black out in videos.
+
+Click and drag to select rectangular regions, then get the coordinates
+to use with the blackout-regions script.
+"""
+
+import argparse
+import cv2
+from pathlib import Path
+
+# Visual overlay constants
+OVERLAY_ALPHA = 0.7
+OVERLAY_BETA = 0.3
+REGION_COLOR = (0, 0, 0)  # Black
+REGION_BORDER_COLOR = (0, 0, 0)  # Black border
+CURRENT_REGION_COLOR = (0, 0, 255)  # Red for current selection
+BORDER_THICKNESS = 2
+
+
+class RegionSelector:
+    def __init__(self, video_path: Path, frame_number: int = 0):
+        self.video_path = video_path
+        self.cap = cv2.VideoCapture(str(video_path))
+
+        if not self.cap.isOpened():
+            raise ValueError(f"Could not open video: {video_path}")
+
+        # Seek to desired frame
+        if frame_number > 0:
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+
+        # Get the frame
+        ret, self.frame = self.cap.read()
+        if not ret:
+            raise ValueError(
+                f"Could not read frame {frame_number} from video: {video_path}"
+            )
+
+        self.original_frame = self.frame.copy()
+        self.regions = []
+        self.current_region = None
+        self.drawing = False
+        self.start_point = None
+
+    def _draw_regions_overlay(self) -> None:
+        """Draw all selected regions with semi-transparent black overlay."""
+        self.frame = self.original_frame.copy()
+        for x, y, w, h in self.regions:
+            # Draw border
+            cv2.rectangle(
+                self.frame,
+                (x, y),
+                (x + w, y + h),
+                REGION_BORDER_COLOR,
+                BORDER_THICKNESS,
+            )
+            # Draw filled overlay
+            overlay = self.frame.copy()
+            cv2.rectangle(overlay, (x, y), (x + w, y + h), REGION_COLOR, -1)
+            self.frame = cv2.addWeighted(
+                self.frame, OVERLAY_ALPHA, overlay, OVERLAY_BETA, 0
+            )
+
+    def mouse_callback(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.drawing = True
+            self.start_point = (x, y)
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self.drawing:
+                # Redraw with current selection
+                self._draw_regions_overlay()
+                # Draw current region being selected
+                cv2.rectangle(
+                    self.frame,
+                    self.start_point,
+                    (x, y),
+                    CURRENT_REGION_COLOR,
+                    BORDER_THICKNESS,
+                )
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self.drawing:
+                self.drawing = False
+                # Calculate region
+                x1, y1 = self.start_point
+                x2, y2 = x, y
+
+                # Ensure top-left to bottom-right
+                rx = min(x1, x2)
+                ry = min(y1, y2)
+                rw = abs(x2 - x1)
+                rh = abs(y2 - y1)
+
+                if rw > 0 and rh > 0:
+                    self.regions.append((rx, ry, rw, rh))
+                    print(
+                        f"Region {len(self.regions)}: x={rx}, y={ry}, width={rw}, height={rh}"
+                    )
+
+                # Redraw all regions
+                self._draw_regions_overlay()
+
+    def run(self):
+        window_name = (
+            "Select Regions (Click-drag to select, 'r' to reset, 'q' to quit)"
+        )
+        cv2.namedWindow(window_name)
+        cv2.setMouseCallback(window_name, self.mouse_callback)
+
+        print("\nInstructions:")
+        print("  - Click and drag to select rectangular regions")
+        print("  - Press 'r' to reset all regions")
+        print("  - Press 'u' to undo last region")
+        print("  - Press 'q' or ESC to finish")
+        print()
+
+        while True:
+            cv2.imshow(window_name, self.frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord("q") or key == 27:  # q or ESC
+                break
+            elif key == ord("r"):  # reset
+                self.regions = []
+                self.frame = self.original_frame.copy()
+                print("All regions cleared")
+            elif key == ord("u"):  # undo
+                if self.regions:
+                    removed = self.regions.pop()
+                    self._draw_regions_overlay()
+                    print(
+                        f"Removed region: x={removed[0]}, y={removed[1]}, width={removed[2]}, height={removed[3]}"
+                    )
+
+        cv2.destroyAllWindows()
+        self.cap.release()
+
+        return self.regions
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Interactive tool to find region coordinates for video blackout",
+    )
+
+    parser.add_argument(
+        "video",
+        type=Path,
+        help="Video file to analyze",
+    )
+
+    parser.add_argument(
+        "--frame",
+        type=int,
+        default=0,
+        help="Frame number to display (default: 0, first frame)",
+    )
+
+    args = parser.parse_args()
+
+    if not args.video.exists():
+        parser.error(f"Video file not found: {args.video}")
+
+    print("Region Finder Tool")
+    print(f"{'=' * 60}")
+    print(f"Video: {args.video}")
+    print(f"Frame: {args.frame}")
+    print()
+
+    selector = RegionSelector(args.video, args.frame)
+    regions = selector.run()
+
+    if regions:
+        print(f"\n{'=' * 60}")
+        print(f"✓ Selected {len(regions)} region(s)")
+        print()
+        print("Use these regions with extract-video-clips:")
+        print()
+        regions_str = " ".join([f'"{x},{y},{w},{h}"' for x, y, w, h in regions])
+        print(
+            f"  ./scripts/extract-video-clips annotations.json -o dataset --blackout-regions {regions_str}"
+        )
+    else:
+        print("\nNo regions selected.")
+
+
+if __name__ == "__main__":
+    main()

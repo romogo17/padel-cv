@@ -13,8 +13,8 @@
       "duration_seconds": 0.7
     },
     {
-      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Forehand_Volley_f190-201.mp4",
-      "stroke_type": "Forehand_Volley",
+      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_Volley_f190-201.mp4",
+      "stroke_type": "Backhand_Volley",
       "start_frame": 190,
       "end_frame": 201,
       "duration_seconds": 0.5
@@ -27,8 +27,8 @@
       "duration_seconds": 0.5666666666666667
     },
     {
-      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_f222-234.mp4",
-      "stroke_type": "Backhand",
+      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_Volley_f222-234.mp4",
+      "stroke_type": "Backhand_Volley",
       "start_frame": 222,
       "end_frame": 234,
       "duration_seconds": 0.5333333333333333
@@ -41,15 +41,15 @@
       "duration_seconds": 0.5
     },
     {
-      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_f263-273.mp4",
-      "stroke_type": "Backhand",
+      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Forehand_Volley_f263-273.mp4",
+      "stroke_type": "Forehand_Volley",
       "start_frame": 263,
       "end_frame": 273,
       "duration_seconds": 0.4666666666666667
     },
     {
-      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_f293-305.mp4",
-      "stroke_type": "Backhand",
+      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Forehand_f293-305.mp4",
+      "stroke_type": "Forehand",
       "start_frame": 293,
       "end_frame": 305,
       "duration_seconds": 0.5333333333333333
@@ -426,8 +426,8 @@
       "duration_seconds": 0.43333333333333335
     },
     {
-      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Backhand_f4198-4206.mp4",
-      "stroke_type": "Backhand",
+      "filename": "a0136e6b_Di_Nenno_Augsburger_vs_Garcia_Barahona_M_Forehand_Volley_f4198-4206.mp4",
+      "stroke_type": "Forehand_Volley",
       "start_frame": 4198,
       "end_frame": 4206,
       "duration_seconds": 0.36666666666666664

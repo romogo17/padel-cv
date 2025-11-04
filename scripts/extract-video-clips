@@ -16,6 +16,15 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import unquote, urlparse, parse_qs
 
+# Video encoding constants
+VIDEO_CODEC = "libx264"
+VIDEO_PRESET = "fast"
+VIDEO_CRF = 23
+VIDEO_PIXEL_FORMAT = "yuv420p"
+
+# Filename sanitization
+MAX_FILENAME_LENGTH = 40
+
 
 def parse_label_studio_path(video_path: str) -> Path:
     """
@@ -37,7 +46,7 @@ def parse_label_studio_path(video_path: str) -> Path:
         return Path(video_path)
 
 
-def sanitize_filename(name: str, max_length: int = 40) -> str:
+def sanitize_filename(name: str, max_length: int = MAX_FILENAME_LENGTH) -> str:
     """
     Sanitize and shorten a filename for use in clip names.
     Removes special characters, accents, and truncates to reasonable length.
@@ -125,24 +134,51 @@ def extract_video_clip(
     start_frame: int,
     end_frame: int,
     fps: float,
+    blackout_regions: list[tuple[int, int, int, int]] | None = None,
 ) -> None:
-    """Extract a video clip using ffmpeg."""
+    """
+    Extract a video clip using ffmpeg (video only, no audio).
+
+    Args:
+        video_path: Path to source video
+        output_path: Path to output clip
+        start_frame: Starting frame number
+        end_frame: Ending frame number
+        fps: Video frame rate
+        blackout_regions: Optional list of (x, y, width, height) tuples for regions to black out
+    """
     start_time = start_frame / fps
     end_time = (end_frame + 1) / fps  # +1 to include the end frame
 
-    (
-        ffmpeg.input(str(video_path), ss=start_time, to=end_time)
-        .output(
-            str(output_path),
-            vcodec="libx264",
-            acodec="aac",
-            preset="fast",
-            crf=23,
-            pix_fmt="yuv420p",
-            movflags="faststart",
-        )
-        .overwrite_output()
-        .run(capture_stdout=True, capture_stderr=True, quiet=True)
+    stream = ffmpeg.input(str(video_path), ss=start_time, to=end_time)
+    video = stream.video
+
+    # Apply blackout regions if specified
+    if blackout_regions:
+        for x, y, w, h in blackout_regions:
+            video = video.filter(
+                "drawbox",
+                x=x,
+                y=y,
+                width=w,
+                height=h,
+                color="black",
+                thickness="fill",
+            )
+
+    output = ffmpeg.output(
+        video,
+        str(output_path),
+        vcodec=VIDEO_CODEC,
+        an=None,  # Strip audio
+        preset=VIDEO_PRESET,
+        crf=VIDEO_CRF,
+        pix_fmt=VIDEO_PIXEL_FORMAT,
+        movflags="faststart",
+    )
+
+    output.overwrite_output().run(
+        capture_stdout=True, capture_stderr=True, quiet=True
     )
 
 
@@ -150,6 +186,7 @@ def extract_clips(
     annotation_file: Path,
     output_dir: Path,
     label_studio_fps: float = 24.0,
+    blackout_regions: list[tuple[int, int, int, int]] | None = None,
 ) -> None:
     """
     Extract video clips based on Label Studio annotations.
@@ -158,6 +195,7 @@ def extract_clips(
         annotation_file: Path to the Label Studio annotation JSON file
         output_dir: Directory where clips will be saved
         label_studio_fps: FPS configured in Label Studio (default: 24)
+        blackout_regions: Optional list of (x, y, width, height) tuples for regions to black out
     """
     # Load annotations
     with open(annotation_file, "r") as f:
@@ -253,6 +291,7 @@ def extract_clips(
                         start_frame_ffmpeg,
                         end_frame_ffmpeg,
                         fps,
+                        blackout_regions,
                     )
 
                     print(
@@ -296,15 +335,55 @@ def extract_clips(
     print(f"   Total clips extracted: {total_clips_extracted}")
 
 
+def parse_blackout_regions(
+    region_strings: list[str],
+) -> list[tuple[int, int, int, int]]:
+    """
+    Parse region strings into tuples of (x, y, width, height).
+
+    Args:
+        region_strings: List of strings in format "x,y,width,height"
+
+    Returns:
+        List of (x, y, width, height) tuples
+
+    Raises:
+        ValueError: If any region string has invalid format
+    """
+    regions = []
+    for region_str in region_strings:
+        try:
+            x, y, w, h = map(int, region_str.split(","))
+            if w <= 0 or h <= 0:
+                raise ValueError(
+                    f"Width and height must be positive: {region_str}"
+                )
+            if x < 0 or y < 0:
+                raise ValueError(
+                    f"Coordinates cannot be negative: {region_str}"
+                )
+            regions.append((x, y, w, h))
+        except ValueError as e:
+            if "not enough values" in str(e) or "invalid literal" in str(e):
+                raise ValueError(
+                    f'Invalid region format: "{region_str}". '
+                    'Expected format: "x,y,width,height" (e.g., "0,0,200,100")'
+                ) from e
+            raise
+    return regions
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extract annotated video clips from Label Studio annotations",
     )
+
     parser.add_argument(
         "annotation_file",
         type=Path,
         help="Path to the Label Studio annotation JSON file",
     )
+
     parser.add_argument(
         "-o",
         "--output-dir",
@@ -312,16 +391,32 @@ def main() -> None:
         required=True,
         help="Directory where extracted clips will be saved",
     )
+
     parser.add_argument(
         "--label-studio-fps",
         type=float,
         default=24.0,
         help="FPS configured in Label Studio's <Video> tag (default: 24).",
     )
+
+    parser.add_argument(
+        "--blackout-regions",
+        nargs="+",
+        help='Regions to black out in format "x,y,width,height" (e.g., "0,0,200,100"). Use find-regions script to identify coordinates.',
+    )
+
     args = parser.parse_args()
 
     if not args.annotation_file.exists():
         parser.error(f"Annotation file not found: {args.annotation_file}")
+
+    # Parse blackout regions if provided
+    blackout_regions = None
+    if args.blackout_regions:
+        try:
+            blackout_regions = parse_blackout_regions(args.blackout_regions)
+        except ValueError as e:
+            parser.error(str(e))
 
     print("Label Studio Annotation Clip Extractor")
     print(f"{'=' * 60}")
@@ -329,8 +424,17 @@ def main() -> None:
     print(f"Output directory: {args.output_dir}")
     if args.label_studio_fps:
         print(f"Label Studio FPS: {args.label_studio_fps}")
+    if blackout_regions:
+        print(f"Blackout regions: {len(blackout_regions)} region(s)")
+        for i, (x, y, w, h) in enumerate(blackout_regions, 1):
+            print(f"  {i}. x={x}, y={y}, width={w}, height={h}")
 
-    extract_clips(args.annotation_file, args.output_dir, args.label_studio_fps)
+    extract_clips(
+        args.annotation_file,
+        args.output_dir,
+        args.label_studio_fps,
+        blackout_regions,
+    )
 
 
 if __name__ == "__main__":
