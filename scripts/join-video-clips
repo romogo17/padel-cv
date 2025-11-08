@@ -1,0 +1,375 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "ffmpeg-python",
+# ]
+# ///
+
+import argparse
+import random
+import ffmpeg
+from pathlib import Path
+from datetime import datetime
+
+
+def get_video_files(
+    dataset_dir: Path, label: str | None = None
+) -> dict[str, list[Path]]:
+    """
+    Get video files organized by label.
+
+    Args:
+        dataset_dir: Path to the dataset directory
+        label: Optional label to filter by (e.g., "Backhand", "Forehand")
+
+    Returns:
+        Dictionary mapping label names to lists of video file paths
+    """
+    videos_by_label = {}
+
+    # Get all label directories
+    label_dirs = [
+        d
+        for d in dataset_dir.iterdir()
+        if d.is_dir() and not d.name.startswith(".")
+    ]
+
+    # Filter by specific label if provided
+    if label:
+        label_dirs = [d for d in label_dirs if d.name == label]
+        if not label_dirs:
+            raise ValueError(f"Label '{label}' not found in dataset directory")
+
+    # Collect video files for each label
+    for label_dir in sorted(label_dirs):
+        video_files = sorted(
+            [
+                f
+                for f in label_dir.iterdir()
+                if f.suffix.lower() in [".mp4", ".avi", ".mov", ".mkv"]
+            ]
+        )
+        if video_files:
+            videos_by_label[label_dir.name] = video_files
+
+    return videos_by_label
+
+
+def sample_videos(video_files: list[Path], percentage: float) -> list[Path]:
+    """
+    Sample a percentage of video files randomly.
+
+    Args:
+        video_files: List of video file paths
+        percentage: Fraction of videos to sample (0.0 to 1.0)
+
+    Returns:
+        Sampled list of video file paths
+    """
+    if percentage >= 1.0:
+        return video_files
+
+    sample_size = max(1, int(len(video_files) * percentage))
+    return sorted(random.sample(video_files, sample_size))
+
+
+def create_concat_file(video_files: list[Path], concat_file: Path) -> None:
+    """
+    Create a concat file for ffmpeg to join videos.
+
+    Args:
+        video_files: List of video file paths to concatenate
+        concat_file: Path where the concat file will be saved
+    """
+    with open(concat_file, "w") as f:
+        for video_file in video_files:
+            # Escape single quotes in the path and write in ffmpeg concat format
+            escaped_path = str(video_file.absolute()).replace("'", "'\\''")
+            f.write(f"file '{escaped_path}'\n")
+
+
+def join_videos(video_files: list[Path], output_file: Path) -> None:
+    """
+    Join multiple video files into a single video using ffmpeg.
+
+    Args:
+        video_files: List of video file paths to join
+        output_file: Path for the output video file
+    """
+    if not video_files:
+        raise ValueError("No video files to join")
+
+    # Create temporary concat file
+    concat_file = output_file.parent / f".concat_{output_file.stem}.txt"
+
+    try:
+        create_concat_file(video_files, concat_file)
+
+        print(f"  Joining {len(video_files)} videos...")
+        print(f"  Output: {output_file.name}")
+
+        # Use ffmpeg to concatenate videos
+        (
+            ffmpeg.input(str(concat_file), format="concat", safe=0)
+            .output(
+                str(output_file),
+                c="copy",  # Copy codec to avoid re-encoding (faster)
+            )
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True, quiet=True)
+        )
+
+        print(f"  ✓ Created: {output_file.name}\n")
+
+    finally:
+        # Clean up concat file
+        if concat_file.exists():
+            concat_file.unlink()
+
+
+def generate_output_filename(
+    label: str | None, percentage: float, total_videos: int
+) -> str:
+    """
+    Generate a descriptive output filename.
+
+    Args:
+        label: Label name (or None for all labels)
+        percentage: Percentage of videos used
+        total_videos: Total number of videos joined
+
+    Returns:
+        Generated filename
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    label_part = label if label else "all_labels"
+
+    if percentage < 1.0:
+        percentage_part = f"_{int(percentage * 100)}pct"
+    else:
+        percentage_part = ""
+
+    return f"joined_{label_part}{percentage_part}_{total_videos}clips_{timestamp}.mp4"
+
+
+def process_label(
+    label_name: str,
+    video_files: list[Path],
+    percentage: float,
+    output_dir: Path,
+) -> Path:
+    """
+    Process videos for a single label: sample and join them.
+
+    Args:
+        label_name: Name of the label
+        video_files: List of video files for this label
+        percentage: Fraction of videos to use
+        output_dir: Directory where output will be saved
+
+    Returns:
+        Path to the created video file
+    """
+    # Sample videos for this label
+    sampled_videos = sample_videos(video_files, percentage)
+
+    print(
+        f"  Using {len(sampled_videos)} out of {len(video_files)} videos "
+        f"({percentage * 100:.0f}%)"
+    )
+
+    # Generate output filename for this label
+    output_filename = generate_output_filename(
+        label_name, percentage, len(sampled_videos)
+    )
+    output_file = output_dir / output_filename
+
+    # Join videos for this label
+    join_videos(sampled_videos, output_file)
+
+    return output_file
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Join video clips from the dataset into a single video",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Join all videos from all labels into one video
+  %(prog)s dataset -o output
+  
+  # Create separate videos for each label
+  %(prog)s dataset -o output --group-by-label
+  
+  # Create separate videos for each label using 30%% of videos
+  %(prog)s dataset -o output --group-by-label --percentage 0.30
+  
+  # Join all videos from the Backhand label
+  %(prog)s dataset -o output --label Backhand
+  
+  # Join 30%% of videos from the Forehand label
+  %(prog)s dataset -o output --label Forehand --percentage 0.30
+  
+  # Join 50%% of all videos into one video
+  %(prog)s dataset -o output --percentage 0.50
+        """,
+    )
+
+    parser.add_argument(
+        "dataset_dir",
+        type=Path,
+        help="Path to the dataset directory containing video clips",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="Output directory where the joined video(s) will be saved",
+    )
+
+    parser.add_argument(
+        "-l",
+        "--label",
+        type=str,
+        default=None,
+        help="Specific label/category to join (e.g., 'Backhand', 'Forehand'). If not specified, joins all labels.",
+    )
+
+    parser.add_argument(
+        "-p",
+        "--percentage",
+        type=float,
+        default=1.0,
+        help="Percentage of videos to use (0.0 to 1.0). Default: 1.0 (all videos)",
+    )
+
+    parser.add_argument(
+        "-g",
+        "--group-by-label",
+        action="store_true",
+        help="Create separate joined videos for each label instead of combining all labels into one video. Only applies when --label is not specified.",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducible sampling. Default: 42",
+    )
+
+    args = parser.parse_args()
+
+    # Validate arguments
+    if not args.dataset_dir.exists():
+        parser.error(f"Dataset directory does not exist: {args.dataset_dir}")
+
+    if not args.dataset_dir.is_dir():
+        parser.error(f"Dataset path is not a directory: {args.dataset_dir}")
+
+    if args.percentage <= 0.0 or args.percentage > 1.0:
+        parser.error(
+            f"Percentage must be between 0.0 and 1.0, got: {args.percentage}"
+        )
+
+    if args.group_by_label and args.label:
+        parser.error(
+            "--group-by-label flag is only applicable when --label is not specified"
+        )
+
+    # Create output directory if it doesn't exist
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Set random seed for reproducibility
+    random.seed(args.seed)
+
+    # Print header
+    print("Video Clip Joiner")
+    print(f"{'=' * 60}")
+    print(f"Dataset directory: {args.dataset_dir}")
+    print(f"Output directory: {args.output_dir}")
+    if args.label:
+        print(f"Label filter: {args.label}")
+    if args.percentage < 1.0:
+        print(f"Sampling: {args.percentage * 100:.0f}% of videos")
+    if args.group_by_label:
+        print("Mode: Group by label (separate video per label)")
+    print(f"{'=' * 60}\n")
+
+    # Get video files
+    print("Scanning dataset...")
+    videos_by_label = get_video_files(args.dataset_dir, args.label)
+
+    if not videos_by_label:
+        print("✗ No video files found!")
+        return 1
+
+    # Display found videos
+    print(f"Found videos in {len(videos_by_label)} label(s):")
+    total_videos = 0
+    for label_name, video_files in videos_by_label.items():
+        count = len(video_files)
+        total_videos += count
+        print(f"  {label_name}: {count} videos")
+    print(f"Total: {total_videos} videos\n")
+
+    # Handle group-by-label mode: create one video per label
+    if args.group_by_label and not args.label:
+        print(f"{'=' * 60}")
+        print("Creating separate videos for each label")
+        print(f"{'=' * 60}\n")
+
+        created_videos = []
+        for label_name, video_files in videos_by_label.items():
+            print(f"Processing label: {label_name}")
+            output_file = process_label(
+                label_name, video_files, args.percentage, args.output_dir
+            )
+            created_videos.append(output_file)
+
+        print(f"{'=' * 60}")
+        print(f"✓ Done! Created {len(created_videos)} video(s)")
+        print(f"{'=' * 60}")
+        for video in created_videos:
+            print(f"  {video.name}")
+        return 0
+
+    # Standard mode: join all videos into one
+    print(f"{'=' * 60}")
+    print("Joining videos")
+    print(f"{'=' * 60}\n")
+
+    # Collect and sample all videos
+    all_videos = []
+    for video_files in videos_by_label.values():
+        all_videos.extend(video_files)
+
+    sampled_videos = sample_videos(all_videos, args.percentage)
+
+    print(
+        f"  Using {len(sampled_videos)} out of {len(all_videos)} videos "
+        f"({args.percentage * 100:.0f}%)\n"
+    )
+
+    # Generate output filename
+    output_filename = generate_output_filename(
+        args.label, args.percentage, len(sampled_videos)
+    )
+    output_file = args.output_dir / output_filename
+
+    # Join videos
+    join_videos(sampled_videos, output_file)
+
+    print(f"{'=' * 60}")
+    print("✓ Done!")
+    print(f"{'=' * 60}")
+    print(f"  {output_file.name}")
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())

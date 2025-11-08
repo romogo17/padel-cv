@@ -152,6 +152,20 @@ class RegionSelector:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Interactive tool to find region coordinates for video blackout",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Find regions in the first frame of a video
+  %(prog)s video.mp4
+  
+  # Find regions in a specific frame (e.g., frame 800)
+  %(prog)s video.mp4 --frame 800
+
+Instructions:
+  - Click and drag to select regions
+  - Press 'q' to finish and get coordinates
+  - Press 'u' to undo the last region
+        """,
     )
 
     parser.add_argument(

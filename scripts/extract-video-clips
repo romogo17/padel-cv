@@ -376,6 +376,18 @@ def parse_blackout_regions(
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extract annotated video clips from Label Studio annotations",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Extract all clips from annotations
+  %(prog)s annotations.json -o dataset
+  
+  # Extract clips with blackout regions (use find-regions to get coordinates)
+  %(prog)s annotations.json -o dataset --blackout-regions "44,50,422,133" "1741,14,163,158"
+  
+  # Extract clips with custom Label Studio FPS setting
+  %(prog)s annotations.json -o dataset --label-studio-fps 30.0
+        """,
     )
 
     parser.add_argument(
