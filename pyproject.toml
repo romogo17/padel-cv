@@ -5,14 +5,34 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "chumpy>=0.70",
     "ipykernel<7",
     "ipywidgets>=8.1.7",
     "matplotlib>=3.10.7",
+    "mmcv",
+    "mmdet",
+    "mmengine",
+    "mmpose",
     "notebook>=7.4.7",
     "numpy>=2.3.4",
     "opencv-python>=4.11.0.86",
+    "openmim>=0.3.9",
     "pandas>=2.3.3",
     "pip>=25.3",
     "seaborn>=0.13.2",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
     "ultralytics>=8.3.223",
+    "xtcocotools",
 ]
+
+[tool.uv.extra-build-dependencies]
+chumpy = ["pip"]
+mmdet = ["torch"]
+
+[tool.uv.sources]
+xtcocotools = { git = "https://github.com/jin-s13/xtcocoapi" }
+mmengine = { git = "https://github.com/open-mmlab/mmengine" }
+mmcv = { git = "https://github.com/open-mmlab/mmcv", tag = "v2.1.0" }
+mmdet = { git = "https://github.com/open-mmlab/mmdetection", tag = "v3.2.0" }
+mmpose = { git = "https://github.com/open-mmlab/mmpose" }
