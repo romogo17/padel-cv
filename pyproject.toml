@@ -19,6 +19,7 @@ dependencies = [
     "openmim>=0.3.9",
     "pandas>=2.3.3",
     "pip>=25.3",
+    "rtmlib>=0.0.14",
     "seaborn>=0.13.2",
     "torch>=2.9.0",
     "torchvision>=0.24.0",

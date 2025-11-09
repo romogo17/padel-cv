@@ -1,2 +1,5 @@
 weights/**/*.pt
 dataset/**/*.mp4
+out/**/*.mp4
+out/**/*.gif
+out/**/*.pt
