@@ -1,0 +1,143 @@
+{
+  "original_name": "IMG_6593.mp4",
+  "original_path": "/Users/roberto/Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/Need4PadelFest/IMG_6593.mp4",
+  "video_id": "750cdfaf",
+  "short_name": "IMG_6593",
+  "fps": 30.0,
+  "clips": [
+    {
+      "filename": "750cdfaf_IMG_6593_Backhand_Volley_f4372-4384.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 4372,
+      "end_frame": 4384,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f4442-4454.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 4442,
+      "end_frame": 4454,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Smash_f4890-4902.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 4890,
+      "end_frame": 4902,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Backhand_Volley_f5229-5240.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 5229,
+      "end_frame": 5240,
+      "duration_seconds": 0.4666666666666667
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Backhand_Volley_f5449-5460.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 5449,
+      "end_frame": 5460,
+      "duration_seconds": 0.4666666666666667
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Backhand_Volley_f7476-7489.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 7476,
+      "end_frame": 7489,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Backhand_Volley_f7656-7670.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 7656,
+      "end_frame": 7670,
+      "duration_seconds": 0.6333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Bandeja_f7722-7737.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 7722,
+      "end_frame": 7737,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Smash_f9972-9986.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 9972,
+      "end_frame": 9986,
+      "duration_seconds": 0.6333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Smash_f14154-14169.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 14154,
+      "end_frame": 14169,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Lob_f15026-15040.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 15026,
+      "end_frame": 15040,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f15895-15909.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 15895,
+      "end_frame": 15909,
+      "duration_seconds": 0.6333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Bandeja_f16399-16414.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 16399,
+      "end_frame": 16414,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f17495-17507.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 17495,
+      "end_frame": 17507,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f19855-19868.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 19855,
+      "end_frame": 19868,
+      "duration_seconds": 0.5666666666666667
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f19944-19955.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 19944,
+      "end_frame": 19955,
+      "duration_seconds": 0.5
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Bandeja_f20441-20453.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 20441,
+      "end_frame": 20453,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Bandeja_f20525-20537.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 20525,
+      "end_frame": 20537,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "750cdfaf_IMG_6593_Forehand_Volley_f22923-22935.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 22923,
+      "end_frame": 22935,
+      "duration_seconds": 0.5333333333333333
+    }
+  ],
+  "total_clips": 19
+}

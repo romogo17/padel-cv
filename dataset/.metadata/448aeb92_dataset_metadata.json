@@ -1,0 +1,143 @@
+{
+  "original_name": "IMG_6552.mp4",
+  "original_path": "/Users/roberto/Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/Need4PadelFest/IMG_6552.mp4",
+  "video_id": "448aeb92",
+  "short_name": "IMG_6552",
+  "fps": 29.97002997002997,
+  "clips": [
+    {
+      "filename": "448aeb92_IMG_6552_Lob_f2899-2908.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 2899,
+      "end_frame": 2908,
+      "duration_seconds": 0.4337666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Lob_f2974-2985.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 2974,
+      "end_frame": 2985,
+      "duration_seconds": 0.5005000000000001
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Smash_f4258-4268.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 4258,
+      "end_frame": 4268,
+      "duration_seconds": 0.46713333333333334
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f6995-7007.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 6995,
+      "end_frame": 7007,
+      "duration_seconds": 0.5338666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Bandeja_f8763-8772.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 8763,
+      "end_frame": 8772,
+      "duration_seconds": 0.40040000000000003
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_f9390-9403.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 9390,
+      "end_frame": 9403,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f9530-9542.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 9530,
+      "end_frame": 9542,
+      "duration_seconds": 0.5338666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Bandeja_f9670-9685.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 9670,
+      "end_frame": 9685,
+      "duration_seconds": 0.6339666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_f12958-12968.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 12958,
+      "end_frame": 12968,
+      "duration_seconds": 0.4337666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f20863-20876.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 20863,
+      "end_frame": 20876,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f20905-20918.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 20905,
+      "end_frame": 20918,
+      "duration_seconds": 0.6006
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f20947-20958.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 20947,
+      "end_frame": 20958,
+      "duration_seconds": 0.5005000000000001
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Forehand_Volley_f21006-21019.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 21006,
+      "end_frame": 21019,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Bandeja_f21060-21072.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 21060,
+      "end_frame": 21072,
+      "duration_seconds": 0.5338666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Bandeja_f21610-21625.mp4",
+      "stroke_type": "Bandeja",
+      "start_frame": 21610,
+      "end_frame": 21625,
+      "duration_seconds": 0.6339666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Vibora_f21687-21703.mp4",
+      "stroke_type": "Vibora",
+      "start_frame": 21687,
+      "end_frame": 21703,
+      "duration_seconds": 0.7007
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Lob_f22762-22774.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 22762,
+      "end_frame": 22774,
+      "duration_seconds": 0.5338666666666667
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Lob_f23693-23706.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 23693,
+      "end_frame": 23706,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "448aeb92_IMG_6552_Dropshot_f23796-23810.mp4",
+      "stroke_type": "Dropshot",
+      "start_frame": 23796,
+      "end_frame": 23810,
+      "duration_seconds": 0.6006
+    }
+  ],
+  "total_clips": 19
+}

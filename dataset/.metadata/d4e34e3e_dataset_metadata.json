@@ -1,0 +1,101 @@
+{
+  "original_name": "IMG_6557.mp4",
+  "original_path": "/Users/roberto/Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/Need4PadelFest/IMG_6557.mp4",
+  "video_id": "d4e34e3e",
+  "short_name": "IMG_6557",
+  "fps": 30.0,
+  "clips": [
+    {
+      "filename": "d4e34e3e_IMG_6557_Lob_f158-173.mp4",
+      "stroke_type": "Lob",
+      "start_frame": 158,
+      "end_frame": 173,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_f696-709.mp4",
+      "stroke_type": "Backhand",
+      "start_frame": 696,
+      "end_frame": 709,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_f1505-1521.mp4",
+      "stroke_type": "Backhand",
+      "start_frame": 1505,
+      "end_frame": 1521,
+      "duration_seconds": 0.7
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Forehand_f1565-1579.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 1565,
+      "end_frame": 1579,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_f1694-1707.mp4",
+      "stroke_type": "Backhand",
+      "start_frame": 1694,
+      "end_frame": 1707,
+      "duration_seconds": 0.5666666666666667
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_f2613-2624.mp4",
+      "stroke_type": "Backhand",
+      "start_frame": 2613,
+      "end_frame": 2624,
+      "duration_seconds": 0.4666666666666667
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Forehand_f2667-2682.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 2667,
+      "end_frame": 2682,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_Volley_f2865-2882.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 2865,
+      "end_frame": 2882,
+      "duration_seconds": 0.7333333333333333
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_Volley_f3479-3492.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 3479,
+      "end_frame": 3492,
+      "duration_seconds": 0.5666666666666667
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Vibora_f7828-7843.mp4",
+      "stroke_type": "Vibora",
+      "start_frame": 7828,
+      "end_frame": 7843,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Smash_f8196-8211.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 8196,
+      "end_frame": 8211,
+      "duration_seconds": 0.6666666666666666
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Backhand_Volley_f8485-8501.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 8485,
+      "end_frame": 8501,
+      "duration_seconds": 0.7
+    },
+    {
+      "filename": "d4e34e3e_IMG_6557_Smash_f8607-8622.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 8607,
+      "end_frame": 8622,
+      "duration_seconds": 0.6666666666666666
+    }
+  ],
+  "total_clips": 13
+}

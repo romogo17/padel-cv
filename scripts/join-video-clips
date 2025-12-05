@@ -15,7 +15,7 @@ from datetime import datetime
 
 
 def get_video_files(
-    dataset_dir: Path, label: str | None = None
+    dataset_dir: Path, label: str | None = None, pattern: str | None = None
 ) -> dict[str, list[Path]]:
     """
     Get video files organized by label.
@@ -23,6 +23,7 @@ def get_video_files(
     Args:
         dataset_dir: Path to the dataset directory
         label: Optional label to filter by (e.g., "Backhand", "Forehand")
+        pattern: Optional pattern to filter filenames (e.g., "6554" to match all clips from IMG_6554)
 
     Returns:
         Dictionary mapping label names to lists of video file paths
@@ -30,11 +31,7 @@ def get_video_files(
     videos_by_label = {}
 
     # Get all label directories
-    label_dirs = [
-        d
-        for d in dataset_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    ]
+    label_dirs = [d for d in dataset_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
     # Filter by specific label if provided
     if label:
@@ -45,12 +42,13 @@ def get_video_files(
     # Collect video files for each label
     for label_dir in sorted(label_dirs):
         video_files = sorted(
-            [
-                f
-                for f in label_dir.iterdir()
-                if f.suffix.lower() in [".mp4", ".avi", ".mov", ".mkv"]
-            ]
+            [f for f in label_dir.iterdir() if f.suffix.lower() in [".mp4", ".avi", ".mov", ".mkv"]]
         )
+
+        # Filter by pattern if provided
+        if pattern:
+            video_files = [f for f in video_files if pattern in f.name]
+
         if video_files:
             videos_by_label[label_dir.name] = video_files
 
@@ -130,7 +128,7 @@ def join_videos(video_files: list[Path], output_file: Path) -> None:
 
 
 def generate_output_filename(
-    label: str | None, percentage: float, total_videos: int
+    label: str | None, percentage: float, total_videos: int, pattern: str | None = None
 ) -> str:
     """
     Generate a descriptive output filename.
@@ -139,6 +137,7 @@ def generate_output_filename(
         label: Label name (or None for all labels)
         percentage: Percentage of videos used
         total_videos: Total number of videos joined
+        pattern: Optional pattern that was used to filter videos
 
     Returns:
         Generated filename
@@ -151,7 +150,12 @@ def generate_output_filename(
     else:
         percentage_part = ""
 
-    return f"joined_{label_part}{percentage_part}_{total_videos}clips_{timestamp}.mp4"
+    if pattern:
+        pattern_part = f"_pattern_{pattern}"
+    else:
+        pattern_part = ""
+
+    return f"joined_{label_part}{percentage_part}{pattern_part}_{total_videos}clips_{timestamp}.mp4"
 
 
 def process_label(
@@ -159,6 +163,7 @@ def process_label(
     video_files: list[Path],
     percentage: float,
     output_dir: Path,
+    pattern: str | None = None,
 ) -> Path:
     """
     Process videos for a single label: sample and join them.
@@ -168,6 +173,7 @@ def process_label(
         video_files: List of video files for this label
         percentage: Fraction of videos to use
         output_dir: Directory where output will be saved
+        pattern: Optional pattern that was used to filter videos
 
     Returns:
         Path to the created video file
@@ -181,9 +187,7 @@ def process_label(
     )
 
     # Generate output filename for this label
-    output_filename = generate_output_filename(
-        label_name, percentage, len(sampled_videos)
-    )
+    output_filename = generate_output_filename(label_name, percentage, len(sampled_videos), pattern)
     output_file = output_dir / output_filename
 
     # Join videos for this label
@@ -215,6 +219,12 @@ Examples:
   
   # Join 50%% of all videos into one video
   %(prog)s dataset -o output --percentage 0.50
+  
+  # Join all clips from a specific original video (e.g., IMG_6554)
+  %(prog)s dataset -o output --pattern 6554
+  
+  # Join all clips from IMG_6554 that are Forehand shots
+  %(prog)s dataset -o output --label Forehand --pattern 6554
         """,
     )
 
@@ -256,6 +266,13 @@ Examples:
     )
 
     parser.add_argument(
+        "--pattern",
+        type=str,
+        default=None,
+        help="Filter videos by filename pattern (e.g., '6554' to match all clips from IMG_6554). Only videos with filenames containing this pattern will be joined.",
+    )
+
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -272,14 +289,10 @@ Examples:
         parser.error(f"Dataset path is not a directory: {args.dataset_dir}")
 
     if args.percentage <= 0.0 or args.percentage > 1.0:
-        parser.error(
-            f"Percentage must be between 0.0 and 1.0, got: {args.percentage}"
-        )
+        parser.error(f"Percentage must be between 0.0 and 1.0, got: {args.percentage}")
 
     if args.group_by_label and args.label:
-        parser.error(
-            "--group-by-label flag is only applicable when --label is not specified"
-        )
+        parser.error("--group-by-label flag is only applicable when --label is not specified")
 
     # Create output directory if it doesn't exist
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -294,6 +307,8 @@ Examples:
     print(f"Output directory: {args.output_dir}")
     if args.label:
         print(f"Label filter: {args.label}")
+    if args.pattern:
+        print(f"Filename pattern: {args.pattern}")
     if args.percentage < 1.0:
         print(f"Sampling: {args.percentage * 100:.0f}% of videos")
     if args.group_by_label:
@@ -302,7 +317,7 @@ Examples:
 
     # Get video files
     print("Scanning dataset...")
-    videos_by_label = get_video_files(args.dataset_dir, args.label)
+    videos_by_label = get_video_files(args.dataset_dir, args.label, args.pattern)
 
     if not videos_by_label:
         print("✗ No video files found!")
@@ -327,7 +342,7 @@ Examples:
         for label_name, video_files in videos_by_label.items():
             print(f"Processing label: {label_name}")
             output_file = process_label(
-                label_name, video_files, args.percentage, args.output_dir
+                label_name, video_files, args.percentage, args.output_dir, args.pattern
             )
             created_videos.append(output_file)
 
@@ -357,7 +372,7 @@ Examples:
 
     # Generate output filename
     output_filename = generate_output_filename(
-        args.label, args.percentage, len(sampled_videos)
+        args.label, args.percentage, len(sampled_videos), args.pattern
     )
     output_file = args.output_dir / output_filename
 

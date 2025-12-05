@@ -1,0 +1,45 @@
+{
+  "original_name": "IMG_6554.mp4",
+  "original_path": "/Users/roberto/Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/Need4PadelFest/IMG_6554.mp4",
+  "video_id": "108cfa87",
+  "short_name": "IMG_6554",
+  "fps": 29.97002997002997,
+  "clips": [
+    {
+      "filename": "108cfa87_IMG_6554_Forehand_f683-696.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 683,
+      "end_frame": 696,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "108cfa87_IMG_6554_Forehand_f736-749.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 736,
+      "end_frame": 749,
+      "duration_seconds": 0.6006
+    },
+    {
+      "filename": "108cfa87_IMG_6554_Backhand_f1612-1625.mp4",
+      "stroke_type": "Backhand",
+      "start_frame": 1612,
+      "end_frame": 1625,
+      "duration_seconds": 0.5672333333333334
+    },
+    {
+      "filename": "108cfa87_IMG_6554_Forehand_f1673-1687.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 1673,
+      "end_frame": 1687,
+      "duration_seconds": 0.6339666666666667
+    },
+    {
+      "filename": "108cfa87_IMG_6554_Forehand_f8422-8435.mp4",
+      "stroke_type": "Forehand",
+      "start_frame": 8422,
+      "end_frame": 8435,
+      "duration_seconds": 0.5672333333333334
+    }
+  ],
+  "total_clips": 5
+}

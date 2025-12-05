@@ -1,0 +1,59 @@
+{
+  "original_name": "IMG_6592.mp4",
+  "original_path": "/Users/roberto/Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/Dataset/Need4PadelFest/IMG_6592.mp4",
+  "video_id": "4965c88d",
+  "short_name": "IMG_6592",
+  "fps": 30.0,
+  "clips": [
+    {
+      "filename": "4965c88d_IMG_6592_Backhand_Volley_f15597-15611.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 15597,
+      "end_frame": 15611,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Backhand_Volley_f16181-16195.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 16181,
+      "end_frame": 16195,
+      "duration_seconds": 0.6
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Backhand_Volley_f16805-16818.mp4",
+      "stroke_type": "Backhand_Volley",
+      "start_frame": 16805,
+      "end_frame": 16818,
+      "duration_seconds": 0.5666666666666667
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Smash_f17193-17206.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 17193,
+      "end_frame": 17206,
+      "duration_seconds": 0.5666666666666667
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Forehand_Volley_f17678-17689.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 17678,
+      "end_frame": 17689,
+      "duration_seconds": 0.5
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Forehand_Volley_f18594-18606.mp4",
+      "stroke_type": "Forehand_Volley",
+      "start_frame": 18594,
+      "end_frame": 18606,
+      "duration_seconds": 0.5333333333333333
+    },
+    {
+      "filename": "4965c88d_IMG_6592_Smash_f18630-18642.mp4",
+      "stroke_type": "Smash",
+      "start_frame": 18630,
+      "end_frame": 18642,
+      "duration_seconds": 0.5333333333333333
+    }
+  ],
+  "total_clips": 7
+}
