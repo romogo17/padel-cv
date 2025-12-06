@@ -1,0 +1,111 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "google-cloud-storage>=2.14",
+#     "tqdm>=4.66",
+# ]
+# ///
+
+"""Upload only the MP4 assets under `video/` in the padel-cv-dataset bucket.
+
+Example usage:
+    scripts/upload-dataset-gcs --dataset ./dataset --skip-existing
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from google.cloud import storage
+from tqdm import tqdm
+
+
+def iter_mp4_files(root: Path) -> list[Path]:
+    return [path for path in root.rglob("*") if path.is_file() and path.suffix.lower() == ".mp4"]
+
+
+def upload_dataset(
+    dataset_dir: Path,
+    bucket_name: str,
+    skip_existing: bool,
+    dry_run: bool,
+) -> None:
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+
+    files = iter_mp4_files(dataset_dir)
+    if not files:
+        raise SystemExit(f"No .mp4 files found under {dataset_dir}")
+
+    print(
+        "Uploading {count} MP4 files from {src} to gs://{bucket}/video/...".format(
+            count=len(files), src=dataset_dir, bucket=bucket_name
+        )
+    )
+
+    for file_path in tqdm(files, desc="upload", unit="file"):
+        relative = file_path.relative_to(dataset_dir)
+        blob_name = f"video/{relative.as_posix()}"
+        blob = bucket.blob(blob_name)
+
+        if skip_existing and blob.exists(client=client):
+            continue
+
+        if dry_run:
+            continue
+
+        try:
+            blob.upload_from_filename(str(file_path))
+        except Exception as exc:  # noqa: BLE001 - surface storage errors to the user
+            raise SystemExit(f"Failed to upload {file_path}: {exc}") from exc
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--bucket",
+        default="padel-cv-dataset",
+        help="GCS bucket name (default: padel-cv-dataset)",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=Path("dataset"),
+        help="Local dataset directory to upload (default: ./dataset)",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        default=False,
+        help="Skip blobs that already exist on GCS",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List files that would be uploaded without actually transferring",
+    )
+
+    args = parser.parse_args()
+
+    dataset_dir = args.dataset.expanduser().resolve()
+    if not dataset_dir.exists():
+        raise SystemExit(f"Dataset directory not found: {dataset_dir}")
+
+    upload_dataset(
+        dataset_dir=dataset_dir,
+        bucket_name=args.bucket,
+        skip_existing=args.skip_existing,
+        dry_run=args.dry_run,
+    )
+
+    if args.dry_run:
+        print("(dry-run) No files were uploaded.")
+    else:
+        print("✓ Upload complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

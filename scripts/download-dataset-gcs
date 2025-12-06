@@ -1,0 +1,109 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "google-cloud-storage>=2.14",
+#     "tqdm>=4.66",
+# ]
+# ///
+
+"""Download the video/ MP4 assets from the padel-cv-dataset bucket."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from google.cloud import storage
+from tqdm import tqdm
+
+
+def download_videos(
+    bucket_name: str,
+    prefix: str,
+    destination: Path,
+    skip_existing: bool,
+    dry_run: bool,
+) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+
+    client = storage.Client()
+    blobs = [
+        blob
+        for blob in client.list_blobs(bucket_or_name=bucket_name, prefix=prefix)
+        if blob.name.lower().endswith(".mp4")
+    ]
+    if not blobs:
+        raise SystemExit(f"No MP4 objects found at gs://{bucket_name}/{prefix}")
+
+    print(
+        "Downloading {count} MP4 files from gs://{bucket}/{prefix} to {dest}".format(
+            count=len(blobs), bucket=bucket_name, prefix=prefix or "", dest=destination
+        )
+    )
+
+    for blob in tqdm(blobs, desc="download", unit="file"):
+        relative = blob.name[len(prefix) :].lstrip("/") if prefix else blob.name
+        target_path = destination / relative
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if target_path.exists() and skip_existing:
+            continue
+
+        if dry_run:
+            continue
+
+        try:
+            blob.download_to_filename(str(target_path))
+        except Exception as exc:  # noqa: BLE001
+            raise SystemExit(f"Failed to download {blob.name}: {exc}") from exc
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--bucket",
+        default="padel-cv-dataset",
+        help="GCS bucket name (default: padel-cv-dataset)",
+    )
+    parser.add_argument(
+        "--prefix",
+        default="video",
+        help="Remote prefix/folder to download (default: video)",
+    )
+    parser.add_argument(
+        "--destination",
+        type=Path,
+        default=Path("dataset"),
+        help="Local destination directory (default: ./dataset)",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Keep files that already exist locally",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List files that would be downloaded without transferring",
+    )
+
+    args = parser.parse_args()
+    download_videos(
+        bucket_name=args.bucket,
+        prefix=args.prefix.strip("/"),
+        destination=args.destination.expanduser().resolve(),
+        skip_existing=args.skip_existing,
+        dry_run=args.dry_run,
+    )
+
+    if args.dry_run:
+        print("(dry-run) No files were downloaded.")
+    else:
+        print("✓ Download complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
