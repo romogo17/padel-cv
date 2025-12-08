@@ -1,0 +1,483 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "opencv-python",
+#     "numpy",
+#     "pandas",
+# ]
+# ///
+
+"""
+Interactive tool to review and clean pose detection data.
+
+Shows all frames from each video clip in a grid with skeleton overlays.
+Allows you to exclude entire clips or remove specific frames with bad pose detection.
+"""
+
+import argparse
+import json
+import csv
+from pathlib import Path
+from typing import List, Tuple, Optional, Dict
+
+import cv2
+import numpy as np
+import pandas as pd
+
+
+# COCO skeleton connections
+COCO_SKELETON = [
+    (0, 1),
+    (0, 2),  # nose to eyes
+    (1, 3),
+    (2, 4),  # eyes to ears
+    (0, 5),
+    (0, 6),  # nose to shoulders
+    (5, 7),
+    (7, 9),  # left arm
+    (6, 8),
+    (8, 10),  # right arm
+    (5, 11),
+    (6, 12),  # shoulders to hips
+    (11, 13),
+    (13, 15),  # left leg
+    (12, 14),
+    (14, 16),  # right leg
+]
+
+
+class PoseReviewer:
+    def __init__(
+        self,
+        dataset_root: Path,
+        pose_cache: Path,
+        manifest_path: Path,
+        blacklist_path: Path,
+    ):
+        self.dataset_root = dataset_root
+        self.pose_cache = pose_cache
+        self.blacklist_path = blacklist_path
+
+        # Load manifest
+        self.manifest = pd.read_csv(manifest_path)
+
+        # Load existing blacklist if it exists
+        self.blacklist = set()
+        if blacklist_path.exists():
+            with open(blacklist_path, "r") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # Skip header
+                for row in reader:
+                    if row:
+                        self.blacklist.add(row[0])
+
+        self.current_idx = 0
+        self.total_videos = len(self.manifest)
+
+    def draw_skeleton_on_frame(
+        self,
+        frame: np.ndarray,
+        keypoints: np.ndarray,
+        scores: np.ndarray,
+        score_threshold: float = 0.3,
+    ) -> np.ndarray:
+        """Draw skeleton overlay on frame."""
+        frame = frame.copy()
+
+        # Draw bones
+        for i, j in COCO_SKELETON:
+            if scores[i] > score_threshold and scores[j] > score_threshold:
+                pt1 = (int(keypoints[i, 0]), int(keypoints[i, 1]))
+                pt2 = (int(keypoints[j, 0]), int(keypoints[j, 1]))
+                cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
+
+        # Draw keypoints with color coding
+        for idx, (kp, score) in enumerate(zip(keypoints, scores)):
+            if score > score_threshold:
+                x, y = int(kp[0]), int(kp[1])
+                # Color code: red=head, blue=upper body, yellow=lower body
+                if idx < 5:
+                    color = (0, 0, 255)
+                elif idx < 11:
+                    color = (255, 0, 0)
+                else:
+                    color = (0, 255, 255)
+
+                cv2.circle(frame, (x, y), 4, color, -1)
+                cv2.circle(frame, (x, y), 4, (255, 255, 255), 1)
+
+        return frame
+
+    def create_frame_grid(
+        self,
+        video_path: Path,
+        pose_data: Dict,
+        grid_size: Tuple[int, int] = (4, 5),
+        frame_size: Tuple[int, int] = (320, 180),
+    ) -> Tuple[np.ndarray, List[int]]:
+        """
+        Create a grid of frames with skeleton overlays.
+
+        Returns:
+            Grid image and list of frame indices displayed
+        """
+        cap = cv2.VideoCapture(str(video_path))
+
+        if not cap.isOpened():
+            raise ValueError(f"Could not open video: {video_path}")
+
+        frames_data = pose_data["frames"]
+        total_frames = len(frames_data)
+
+        # Calculate frames to show (evenly spaced)
+        max_frames = grid_size[0] * grid_size[1]
+        if total_frames <= max_frames:
+            frame_indices = list(range(total_frames))
+        else:
+            frame_indices = np.linspace(0, total_frames - 1, max_frames, dtype=int).tolist()
+
+        # Create grid
+        grid_rows = []
+        for row_idx in range(grid_size[0]):
+            row_frames = []
+            for col_idx in range(grid_size[1]):
+                frame_list_idx = row_idx * grid_size[1] + col_idx
+
+                if frame_list_idx < len(frame_indices):
+                    frame_idx = frame_indices[frame_list_idx]
+
+                    # Read frame
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                    ret, frame = cap.read()
+
+                    if ret:
+                        # Get pose data
+                        frame_pose = frames_data[frame_idx]
+
+                        if frame_pose["keypoints"]:
+                            keypoints = np.array(frame_pose["keypoints"])
+                            scores = np.array(frame_pose["scores"])
+                            frame = self.draw_skeleton_on_frame(frame, keypoints, scores)
+
+                        # Resize frame
+                        frame = cv2.resize(frame, frame_size)
+
+                        # Add frame number label
+                        label = f"Frame {frame_idx}"
+                        if not frame_pose["keypoints"]:
+                            label += " (NO POSE)"
+                            cv2.putText(
+                                frame,
+                                "NO POSE",
+                                (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.6,
+                                (0, 0, 255),
+                                2,
+                            )
+
+                        cv2.putText(
+                            frame,
+                            label,
+                            (5, frame_size[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.4,
+                            (255, 255, 255),
+                            1,
+                        )
+                    else:
+                        # Create black frame
+                        frame = np.zeros((frame_size[1], frame_size[0], 3), dtype=np.uint8)
+                        cv2.putText(
+                            frame,
+                            "ERROR",
+                            (10, frame_size[1] // 2),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 0, 255),
+                            2,
+                        )
+                else:
+                    # Empty cell
+                    frame = np.zeros((frame_size[1], frame_size[0], 3), dtype=np.uint8)
+
+                row_frames.append(frame)
+
+            # Concatenate row
+            row_img = np.hstack(row_frames)
+            grid_rows.append(row_img)
+
+        cap.release()
+
+        # Concatenate all rows
+        grid = np.vstack(grid_rows)
+
+        return grid, frame_indices
+
+    def add_to_blacklist(self, video_name: str, stroke: str, reason: str = "manual_review"):
+        """Add video to blacklist."""
+        self.blacklist.add(video_name)
+
+        # Append to blacklist file
+        file_exists = self.blacklist_path.exists()
+        with open(self.blacklist_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["video_name", "stroke", "reason"])
+            writer.writerow([video_name, stroke, reason])
+
+        print(f"  ✓ Added to blacklist: {video_name}")
+
+    def remove_frames_from_pose(self, pose_path: Path, frames_to_remove: List[int]):
+        """Remove specific frames from pose JSON file."""
+        with open(pose_path, "r") as f:
+            pose_data = json.load(f)
+
+        original_count = len(pose_data["frames"])
+
+        # Create new frames list excluding specified indices
+        new_frames = [
+            frame for idx, frame in enumerate(pose_data["frames"]) if idx not in frames_to_remove
+        ]
+
+        pose_data["frames"] = new_frames
+
+        # Save back to file
+        with open(pose_path, "w") as f:
+            json.dump(pose_data, f, indent=2)
+
+        removed_count = original_count - len(new_frames)
+        print(f"  ✓ Removed {removed_count} frames from {pose_path.name}")
+        print(f"    Frames removed: {sorted(frames_to_remove)}")
+
+    def review_video(self, idx: int) -> Optional[str]:
+        """
+        Review a single video.
+
+        Returns:
+            'next', 'prev', 'quit', or None to stay on current video
+        """
+        row = self.manifest.iloc[idx]
+        stroke = row["stroke"]
+        video_name = row["video_name"]
+        pose_path = Path(row["pose_path"])
+
+        # Resolve pose path (handle relative paths)
+        if not pose_path.is_absolute():
+            pose_path = self.pose_cache / pose_path.name
+
+        # Check if already blacklisted
+        if video_name in self.blacklist:
+            print(f"\nSkipping {video_name} (already blacklisted)")
+            return "next"
+
+        # Load pose data
+        with open(pose_path, "r") as f:
+            pose_data = json.load(f)
+
+        # Find video file
+        video_path = self.dataset_root / stroke / video_name
+        if not video_path.exists():
+            # Try other directories for merged classes
+            for subdir in self.dataset_root.iterdir():
+                if subdir.is_dir():
+                    candidate = subdir / video_name
+                    if candidate.exists():
+                        video_path = candidate
+                        break
+
+        if not video_path.exists():
+            print(f"\nError: Video not found: {video_path}")
+            return "next"
+
+        # Create grid
+        try:
+            grid, frame_indices = self.create_frame_grid(video_path, pose_data)
+        except Exception as e:
+            print(f"\nError creating grid: {e}")
+            return "next"
+
+        # Calculate statistics
+        total_frames = len(pose_data["frames"])
+        valid_frames = sum(1 for f in pose_data["frames"] if f["keypoints"])
+        valid_ratio = valid_frames / total_frames if total_frames > 0 else 0
+
+        # Display info
+        print(f"\n{'='*80}")
+        print(f"Video {idx + 1}/{self.total_videos}")
+        print(f"Stroke: {stroke}")
+        print(f"File: {video_name}")
+        print(f"Total frames: {total_frames}")
+        print(f"Valid poses: {valid_frames}/{total_frames} ({valid_ratio*100:.1f}%)")
+        print(
+            f"Showing frames: {len(frame_indices)} (indices: {min(frame_indices)}-{max(frame_indices)})"
+        )
+        print(f"{'='*80}")
+        print("Commands:")
+        print("  SPACE/ENTER - Keep and go to next")
+        print("  'x' - Exclude entire video")
+        print("  'd' - Drop specific frames (will prompt for frame numbers)")
+        print("  'p' - Go to previous video")
+        print("  'q' - Quit")
+
+        # Show window
+        window_name = f"Pose Review ({idx + 1}/{self.total_videos})"
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.imshow(window_name, grid)
+
+        while True:
+            key = cv2.waitKey(0) & 0xFF
+
+            if key == ord(" ") or key == 13:  # SPACE or ENTER
+                cv2.destroyAllWindows()
+                return "next"
+
+            elif key == ord("x"):  # Exclude
+                self.add_to_blacklist(video_name, stroke, "excluded_by_user")
+                cv2.destroyAllWindows()
+                return "next"
+
+            elif key == ord("d"):  # Drop frames
+                cv2.destroyAllWindows()
+                print("\nEnter frame numbers to drop (comma-separated, e.g., '0,3,7'):")
+                print("Available frames:", frame_indices)
+
+                user_input = input("Frames to drop: ").strip()
+                if user_input:
+                    try:
+                        frames_to_drop = [int(x.strip()) for x in user_input.split(",")]
+                        # Validate frame numbers
+                        invalid = [f for f in frames_to_drop if f < 0 or f >= total_frames]
+                        if invalid:
+                            print(f"  ✗ Invalid frame numbers: {invalid}")
+                        else:
+                            self.remove_frames_from_pose(pose_path, frames_to_drop)
+                            return "next"
+                    except ValueError:
+                        print("  ✗ Invalid input format")
+
+                # Redisplay if input was invalid or empty
+                cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                cv2.imshow(window_name, grid)
+
+            elif key == ord("p"):  # Previous
+                cv2.destroyAllWindows()
+                return "prev"
+
+            elif key == ord("q") or key == 27:  # q or ESC
+                cv2.destroyAllWindows()
+                return "quit"
+
+    def run(self, start_idx: int = 0):
+        """Run the review process."""
+        print("\n" + "=" * 80)
+        print("POSE REVIEW TOOL")
+        print("=" * 80)
+        print(f"Total videos: {self.total_videos}")
+        print(f"Already blacklisted: {len(self.blacklist)}")
+        print(f"Starting at video: {start_idx + 1}")
+        print()
+
+        self.current_idx = start_idx
+
+        while 0 <= self.current_idx < self.total_videos:
+            action = self.review_video(self.current_idx)
+
+            if action == "next":
+                self.current_idx += 1
+            elif action == "prev":
+                self.current_idx = max(0, self.current_idx - 1)
+            elif action == "quit":
+                break
+
+        print("\n" + "=" * 80)
+        print("REVIEW COMPLETE")
+        print("=" * 80)
+        print(f"Videos reviewed: {self.current_idx + 1}/{self.total_videos}")
+        print(f"Total blacklisted: {len(self.blacklist)}")
+        print(f"Blacklist file: {self.blacklist_path}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Interactive pose review and cleaning tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Review all poses starting from the beginning
+  %(prog)s
+  
+  # Start from a specific video (e.g., video 50)
+  %(prog)s --start 49
+  
+  # Use custom paths
+  %(prog)s --dataset ../dataset --pose-cache ../artifacts/poses_bbox
+
+Controls:
+  SPACE/ENTER - Keep video and continue
+  'x'         - Exclude entire video (add to blacklist)
+  'd'         - Drop specific frames (enter comma-separated frame numbers)
+  'p'         - Go to previous video
+  'q'         - Quit review
+
+The tool will:
+  - Show all frames in a grid with skeleton overlays
+  - Allow you to exclude bad videos (saved to blacklist.csv)
+  - Allow you to remove specific frames with bad detections (updates pose JSON files)
+        """,
+    )
+
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=Path("dataset"),
+        help="Path to dataset root (default: dataset)",
+    )
+
+    parser.add_argument(
+        "--pose-cache",
+        type=Path,
+        default=Path("artifacts/poses_bbox"),
+        help="Path to pose cache directory (default: artifacts/poses_bbox)",
+    )
+
+    parser.add_argument(
+        "--start",
+        type=int,
+        default=0,
+        help="Start from video index (0-based, default: 0)",
+    )
+
+    args = parser.parse_args()
+
+    # Resolve paths
+    dataset_root = args.dataset.resolve()
+    pose_cache = args.pose_cache.resolve()
+    manifest_path = pose_cache / "pose_manifest.csv"
+    blacklist_path = pose_cache / "blacklist.csv"
+
+    # Validate paths
+    if not dataset_root.exists():
+        parser.error(f"Dataset not found: {dataset_root}")
+
+    if not pose_cache.exists():
+        parser.error(f"Pose cache not found: {pose_cache}")
+
+    if not manifest_path.exists():
+        parser.error(f"Manifest not found: {manifest_path}")
+
+    # Run reviewer
+    try:
+        reviewer = PoseReviewer(dataset_root, pose_cache, manifest_path, blacklist_path)
+        reviewer.run(start_idx=args.start)
+    except KeyboardInterrupt:
+        print("\n\nReview interrupted by user")
+    except Exception as e:
+        print(f"\nError: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    main()
