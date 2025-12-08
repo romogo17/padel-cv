@@ -217,6 +217,15 @@ dataset/**/*.mov
 !dataset/.metadata/
 !dataset/.metadata/*.json
 
+# Artifacts - ignore video files but keep JSON files
+# Ignore all video files in artifact directories
+artifacts/**/*.mp4
+artifacts/ball_tracking/
+artifacts/skeletons_bbox/
+
+# But keep its JSON files
+!artifacts/**/*.json
+
 # Ignore PyTorch model files
 *.pt
 *.pth
