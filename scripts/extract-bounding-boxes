@@ -1,0 +1,228 @@
+#!/usr/bin/env -S uv run --script
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+
+"""
+Extract bounding boxes from Label Studio annotations and generate a manifest CSV.
+
+This script processes Label Studio's bbox annotation JSON files and creates
+a CSV manifest (dataset/bboxes.csv) containing video paths and their corresponding
+bounding boxes for the striking player.
+
+The bbox includes the first frame coordinates where the player is positioned.
+The format is: x, y, width, height (all in percentage of frame dimensions).
+"""
+
+import argparse
+import csv
+import json
+from pathlib import Path
+from urllib.parse import unquote, urlparse, parse_qs
+
+
+def parse_label_studio_path(video_path: str) -> Path:
+    """
+    Parse Label Studio's video path format.
+    Example: /data/local-files/?d=Desktop/UNIR-IA/Trabajo-Fin-de-Estudio/padel-cv/dataset/...
+    Returns the relative path from the project root.
+    """
+    if video_path.startswith("/data/local-files/?d="):
+        # Extract the path from the query parameter
+        parsed = urlparse(video_path)
+        params = parse_qs(parsed.query)
+        relative_path = params.get("d", [""])[0]
+        # Decode URL encoding
+        decoded_path = unquote(relative_path)
+        # Construct full path from home directory
+        full_path = Path.home() / decoded_path
+        return full_path
+    else:
+        # Fallback to direct path
+        return Path(video_path)
+
+
+def extract_bbox_from_annotation(annotation: dict) -> tuple[Path, dict] | None:
+    """
+    Extract video path and bounding box from a single annotation.
+
+    Returns:
+        Tuple of (video_path, bbox_dict) or None if no valid bbox found.
+        bbox_dict contains: x, y, width, height
+    """
+    video_path_str = annotation.get("video")
+    if not video_path_str:
+        return None
+
+    video_path = parse_label_studio_path(video_path_str)
+
+    # Get bbox annotations
+    boxes = annotation.get("box", [])
+    if not boxes:
+        return None
+
+    # Find the box labeled as "Striker" with sequence data
+    striker_box = None
+    for box in boxes:
+        labels = box.get("labels", [])
+        sequence = box.get("sequence", [])
+        if "Striker" in labels and sequence:
+            striker_box = box
+            break
+
+    if not striker_box:
+        return None
+
+    # Get the first frame's bbox coordinates
+    sequence = striker_box.get("sequence", [])
+    if not sequence:
+        return None
+
+    first_frame = sequence[0]
+
+    # Extract bbox coordinates (in percentage)
+    bbox = {
+        "x": first_frame.get("x", 0),
+        "y": first_frame.get("y", 0),
+        "width": first_frame.get("width", 0),
+        "height": first_frame.get("height", 0),
+    }
+
+    return video_path, bbox
+
+
+def process_annotations(
+    annotation_file: Path,
+    output_csv: Path,
+    project_root: Path,
+) -> None:
+    """
+    Process Label Studio annotations and generate bbox manifest CSV.
+
+    Args:
+        annotation_file: Path to Label Studio JSON annotations
+        output_csv: Path to output CSV file
+        project_root: Project root directory for relative path calculation
+    """
+    # Load annotations
+    with open(annotation_file, "r") as f:
+        annotations = json.load(f)
+
+    # Extract bboxes
+    results = []
+    skipped = 0
+
+    for annotation in annotations:
+        result = extract_bbox_from_annotation(annotation)
+        if result:
+            video_path, bbox = result
+
+            # Convert to relative path from project root
+            try:
+                relative_path = video_path.relative_to(project_root)
+            except ValueError:
+                # If path is not relative to project root, use as-is
+                relative_path = video_path
+
+            results.append(
+                {
+                    "video": str(relative_path),
+                    "x": bbox["x"],
+                    "y": bbox["y"],
+                    "width": bbox["width"],
+                    "height": bbox["height"],
+                }
+            )
+        else:
+            skipped += 1
+
+    # Sort by video path for consistency
+    results.sort(key=lambda x: x["video"])
+
+    # Write CSV
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_csv, "w", newline="") as f:
+        fieldnames = ["video", "x", "y", "width", "height"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(results)
+
+    # Print summary
+    print(f"Processed {len(annotations)} annotations")
+    print(f"  ✓ Extracted: {len(results)} bboxes")
+    if skipped > 0:
+        print(f"  ⚠ Skipped: {skipped} (no valid bbox found)")
+    print(f"\nManifest saved to: {output_csv}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Extract bounding boxes from Label Studio annotations",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Process annotations and create bbox manifest
+  %(prog)s annotations.json
+  
+  # Specify custom output path
+  %(prog)s annotations.json --output custom/bboxes.csv
+  
+  # Specify custom project root for relative paths
+  %(prog)s annotations.json --project-root /path/to/project
+        """,
+    )
+
+    parser.add_argument(
+        "annotation_file",
+        type=Path,
+        help="Label Studio annotation JSON file",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Output CSV file (default: dataset/bboxes.csv)",
+    )
+
+    parser.add_argument(
+        "-p",
+        "--project-root",
+        type=Path,
+        default=None,
+        help="Project root directory for relative paths (default: current directory)",
+    )
+
+    args = parser.parse_args()
+
+    # Determine output path
+    if args.output:
+        output_csv = args.output
+    else:
+        # Default to dataset/bboxes.csv relative to current directory
+        output_csv = Path.cwd() / "dataset" / "bboxes.csv"
+
+    # Determine project root
+    project_root = args.project_root if args.project_root else Path.cwd()
+
+    # Validate input
+    if not args.annotation_file.exists():
+        print(f"Error: Annotation file not found: {args.annotation_file}")
+        return 1
+
+    # Process annotations
+    process_annotations(
+        annotation_file=args.annotation_file,
+        output_csv=output_csv,
+        project_root=project_root,
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())

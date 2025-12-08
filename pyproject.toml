@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "chumpy>=0.70",
+    "imageio>=2.37.2",
     "ipykernel<7",
     "ipywidgets>=8.1.7",
     "matplotlib>=3.10.7",
@@ -20,6 +21,7 @@ dependencies = [
     "pandas>=2.3.3",
     "pip>=25.3",
     "rtmlib>=0.0.14",
+    "scikit-learn>=1.7.2",
     "seaborn>=0.13.2",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
