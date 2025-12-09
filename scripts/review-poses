@@ -55,6 +55,7 @@ class PoseReviewer:
         pose_cache: Path,
         manifest_path: Path,
         blacklist_path: Path,
+        pattern: Optional[str] = None,
     ):
         self.dataset_root = dataset_root
         self.pose_cache = pose_cache
@@ -62,6 +63,15 @@ class PoseReviewer:
 
         # Load manifest
         self.manifest = pd.read_csv(manifest_path)
+
+        # Filter by pattern if provided
+        if pattern:
+            original_count = len(self.manifest)
+            self.manifest = self.manifest[
+                self.manifest["video_name"].str.contains(pattern, case=False, na=False)
+            ]
+            filtered_count = len(self.manifest)
+            print(f"Pattern filter '{pattern}': {filtered_count}/{original_count} videos match\n")
 
         # Load existing blacklist if it exists
         self.blacklist = set()
@@ -412,6 +422,12 @@ Examples:
   # Start from a specific video (e.g., video 50)
   %(prog)s --start 49
   
+  # Review only videos matching a pattern
+  %(prog)s --pattern "FINAL_Premier_Padel_MILANO"
+  
+  # Combine pattern filter with start index
+  %(prog)s --pattern "6554" --start 5
+  
   # Use custom paths
   %(prog)s --dataset ../dataset --pose-cache ../artifacts/poses_bbox
 
@@ -450,6 +466,13 @@ The tool will:
         help="Start from video index (0-based, default: 0)",
     )
 
+    parser.add_argument(
+        "--pattern",
+        type=str,
+        default=None,
+        help="Filter videos by filename pattern (e.g., 'FINAL_Premier_Padel_MILANO' to review only videos matching this pattern)",
+    )
+
     args = parser.parse_args()
 
     # Resolve paths
@@ -470,7 +493,9 @@ The tool will:
 
     # Run reviewer
     try:
-        reviewer = PoseReviewer(dataset_root, pose_cache, manifest_path, blacklist_path)
+        reviewer = PoseReviewer(
+            dataset_root, pose_cache, manifest_path, blacklist_path, pattern=args.pattern
+        )
         reviewer.run(start_idx=args.start)
     except KeyboardInterrupt:
         print("\n\nReview interrupted by user")
