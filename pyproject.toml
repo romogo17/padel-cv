@@ -39,3 +39,6 @@ mmengine = { git = "https://github.com/open-mmlab/mmengine" }
 mmcv = { git = "https://github.com/open-mmlab/mmcv", tag = "v2.1.0" }
 mmdet = { git = "https://github.com/open-mmlab/mmdetection", tag = "v3.2.0" }
 mmpose = { git = "https://github.com/open-mmlab/mmpose" }
+
+[tool.ruff.lint]
+ignore = ["F541"]

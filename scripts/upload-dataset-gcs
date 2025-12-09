@@ -22,8 +22,12 @@ from google.cloud import storage
 from tqdm import tqdm
 
 
-def iter_mp4_files(root: Path) -> list[Path]:
-    return [path for path in root.rglob("*") if path.is_file() and path.suffix.lower() == ".mp4"]
+def iter_files(root: Path) -> list[Path]:
+    return [
+        path
+        for path in root.rglob("*")
+        if path.is_file() and (path.suffix.lower() == ".mp4" or path.suffix.lower() == ".csv")
+    ]
 
 
 def upload_dataset(
@@ -35,7 +39,7 @@ def upload_dataset(
     client = storage.Client()
     bucket = client.bucket(bucket_name)
 
-    files = iter_mp4_files(dataset_dir)
+    files = iter_files(dataset_dir)
     if not files:
         raise SystemExit(f"No .mp4 files found under {dataset_dir}")
 
