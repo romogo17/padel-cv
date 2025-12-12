@@ -220,6 +220,7 @@ dataset/**/*.mov
 # Artifacts - ignore video files but keep JSON files
 # Ignore all video files in artifact directories
 artifacts/**/*.mp4
+artifacts/**/*.npy
 artifacts/ball_tracking/
 artifacts/skeletons_bbox/
 
