@@ -14,10 +14,12 @@ dependencies = [
     "mmdet",
     "mmengine",
     "mmpose",
+    "onnxruntime>=1.19.0",
     "notebook>=7.4.7",
     "numpy>=2.3.4",
     "opencv-python>=4.11.0.86",
     "openmim>=0.3.9",
+    "pyside6>=6.7.3",
     "pandas>=2.3.3",
     "pip>=25.3",
     "pytorchvideo>=0.1.5",
@@ -29,6 +31,7 @@ dependencies = [
     "torchvision>=0.24.0",
     "transformers>=4.57.3",
     "ultralytics>=8.3.223",
+    "google-cloud-storage>=2.18.2",
     "xtcocotools",
 ]
 
